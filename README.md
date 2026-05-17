@@ -132,6 +132,7 @@ python3 scripts/ingest_images.py \
 
 ## 주요 문서
 
+- [Polycam 스캔 전달 가이드](SCANGUIDE.md)
 - [Cloudflare Workers MVP](docs/cloudflare-worker-mvp.md)
 - [Vectorize 연동](docs/vectorize.md)
 - [DINOv2-small ONNX 실험](docs/dinov2-onnx.md)

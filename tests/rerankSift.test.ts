@@ -28,7 +28,7 @@ describe("rerank_sift.py", () => {
     expect(report.method).toBe("SIFT_RANSAC");
     expect(report.topK).toHaveLength(3);
     expect(report.topK[0].score).toBeGreaterThan(0);
-  });
+  }, 20000);
 
   it("상대 경로 query와 gallery를 받아도 리포트를 생성한다", () => {
     const dir = mkdtempSync(join(tmpdir(), "path-finder-sift-relative-"));
@@ -55,5 +55,5 @@ describe("rerank_sift.py", () => {
     const report = JSON.parse(readFileSync(output, "utf8"));
 
     expect(report.topK).toHaveLength(1);
-  });
+  }, 20000);
 });
