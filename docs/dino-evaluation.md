@@ -46,6 +46,27 @@ uncertain: 0
 
 top-1은 모두 자기 자신을 찾지만, top-1/top-2 margin이 모두 0.05보다 작습니다. 샘플 이미지들이 서로 너무 비슷하다는 뜻이며, 실제 사용자에게는 단일 위치 확정보다 다중 후보를 반환하는 쪽이 맞습니다.
 
+## Threshold sweep
+
+여러 threshold 조합은 다음 명령으로 비교합니다.
+
+```bash
+npm run sweep:thresholds
+```
+
+현재 샘플 sweep 결과의 best 후보:
+
+```text
+minScore: 0.68
+minMargin: 0.02
+top1SelfRecall: 1.0
+confident: 1
+ambiguous: 7
+uncertain: 0
+```
+
+기본 정책인 `minScore 0.72`, `minMargin 0.05`보다 낮춰도 대부분 ambiguous입니다. 샘플셋에서는 DINO 전역 임베딩의 margin이 낮다는 결론이 유지됩니다.
+
 ## Query/Gallery 분리 평가
 
 사용자 이미지 1장을 따로 두고, 미리 임베딩한 갤러리와 비교하는 경로도 확인했습니다.
@@ -98,6 +119,24 @@ python3 scripts/rerank_orb.py \
 
 `coex-sample-01`은 2위입니다. ORB만으로 최종 판정을 내리기에는 부족하지만, DINO top-K 후보를 로컬 매칭 점수로 다시 보는 구조는 유효합니다.
 
+SIFT/RANSAC도 CPU-only rerank 후보로 추가했습니다.
+
+```bash
+npm run rerank:sift
+```
+
+현재 SIFT/RANSAC top-K:
+
+```text
+1. coex-sample-03
+2. coex-sample-01
+3. coex-sample-05
+4. coex-sample-07
+5. coex-sample-08
+```
+
+SIFT도 기대 후보를 2위에 올리지만 단독 최종 판정에는 부족합니다. 다음 단계는 DINO 또는 MobileCLIP2 top-K 안에서만 SIFT/LightGlue 계열을 적용해 오탐을 줄이는 것입니다.
+
 ## 다음 기준
 
 스캔 전에는 다음 자동 리포트를 유지합니다.
@@ -106,4 +145,5 @@ python3 scripts/rerank_orb.py \
 - confidence 분포
 - top-1/top-2 margin 분포
 - ORB/RANSAC inlier 분포
+- SIFT/RANSAC inlier 분포
 - 모델별 CPU/브라우저 추론 시간

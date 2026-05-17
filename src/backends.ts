@@ -2,6 +2,12 @@ import { type GalleryEmbedding, type SearchResult, searchEmbeddings } from "./se
 
 export type PublicSearchResult = Omit<SearchResult, "vector">;
 
+export type PublicSearchMetadata = Partial<Omit<PublicSearchResult, "id" | "score" | "rank">>;
+
+export type SearchMetadataStore = {
+  getByIds(ids: string[]): Promise<Map<string, PublicSearchMetadata>>;
+};
+
 export type SearchBackend = {
   readonly name: string;
   search(embedding: number[], topK: number): Promise<PublicSearchResult[]>;
@@ -46,7 +52,10 @@ export function createLocalSearchBackend(gallery: GalleryEmbedding[]): SearchBac
   };
 }
 
-export function createVectorizeSearchBackend(index: VectorizeIndex): SearchBackend {
+export function createVectorizeSearchBackend(
+  index: VectorizeIndex,
+  metadataStore?: SearchMetadataStore,
+): SearchBackend {
   return {
     name: "vectorize",
     async search(embedding, topK) {
@@ -54,9 +63,14 @@ export function createVectorizeSearchBackend(index: VectorizeIndex): SearchBacke
         topK,
         returnMetadata: "all",
       });
+      const metadataById = metadataStore
+        ? await metadataStore.getByIds(response.matches.map((match) => match.id))
+        : new Map<string, PublicSearchMetadata>();
 
       return response.matches.map((match, index) => {
-        const metadata = match.metadata ?? {};
+        const vectorizeMetadata = match.metadata ?? {};
+        const d1Metadata = metadataById.get(match.id) ?? {};
+        const metadata = { ...vectorizeMetadata, ...d1Metadata };
         return {
           id: match.id,
           label: stringMetadata(metadata, "label") ?? match.id,

@@ -52,3 +52,66 @@ describe("worker model assets", () => {
     await expect(response.text()).resolves.toBe("모델을 R2에서 찾을 수 없습니다.");
   });
 });
+
+describe("worker search metadata", () => {
+  it("D1 keyframes metadata를 DINO Vectorize 검색 결과에 붙인다", async () => {
+    const response = await worker.fetch(
+      new Request("https://path-finder.test/api/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ modelId: "dinov2-small-v1", embedding: [1, 0, 0], topK: 1 }),
+      }),
+      {
+        ASSETS: createAssetsResponse(),
+        VECTORIZE_DINOV2: {
+          async query() {
+            return {
+              matches: [{ id: "coex-001", score: 0.98, metadata: { label: "coex-001" } }],
+            };
+          },
+        },
+        DB: {
+          prepare(sql: string) {
+            expect(sql).toContain("FROM keyframes");
+            return {
+              bind(...ids: string[]) {
+                expect(ids).toEqual(["coex-001"]);
+                return {
+                  async all() {
+                    return {
+                      results: [
+                        {
+                          id: "coex-001",
+                          label: "별마당도서관 북측",
+                          floor: "B1",
+                          zone: "STARFIELD",
+                          imagePath: "/keyframes/coex-001.jpg",
+                          x: 20,
+                          y: 35,
+                        },
+                      ],
+                    };
+                  },
+                };
+              },
+            };
+          },
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      modelId: "dinov2-small-v1",
+      results: [
+        {
+          id: "coex-001",
+          label: "별마당도서관 북측",
+          floor: "B1",
+          zone: "STARFIELD",
+          imagePath: "/keyframes/coex-001.jpg",
+        },
+      ],
+    });
+  });
+});

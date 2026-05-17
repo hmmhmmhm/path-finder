@@ -67,4 +67,56 @@ describe("createVectorizeSearchBackend", () => {
       },
     ]);
   });
+
+  it("D1 metadata store가 있으면 Vectorize 결과를 위치 메타데이터로 보강한다", async () => {
+    const backend = createVectorizeSearchBackend(
+      {
+        async query() {
+          return {
+            matches: [
+              {
+                id: "coex-keyframe-001",
+                score: 0.91,
+                metadata: {
+                  label: "coex-keyframe-001",
+                },
+              },
+            ],
+          };
+        },
+      },
+      {
+        async getByIds(ids) {
+          expect(ids).toEqual(["coex-keyframe-001"]);
+          return new Map([
+            [
+              "coex-keyframe-001",
+              {
+                label: "별마당도서관 북측",
+                floor: "B1",
+                zone: "STARFIELD",
+                x: 20,
+                y: 35,
+                imagePath: "/keyframes/coex/B1/starfield/coex-keyframe-001.jpg",
+              },
+            ],
+          ]);
+        },
+      },
+    );
+
+    await expect(backend.search([1, 0, 0], 1)).resolves.toEqual([
+      {
+        id: "coex-keyframe-001",
+        label: "별마당도서관 북측",
+        floor: "B1",
+        zone: "STARFIELD",
+        x: 20,
+        y: 35,
+        imagePath: "/keyframes/coex/B1/starfield/coex-keyframe-001.jpg",
+        score: 0.91,
+        rank: 1,
+      },
+    ]);
+  });
 });

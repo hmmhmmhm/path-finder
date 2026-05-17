@@ -26,6 +26,21 @@
 
 이 결과는 실제 코엑스 데이터셋 정확도가 아니라 “현재 후보가 파이프라인에 들어갈 수 있는지”와 “샘플 query에서 어떤 순위를 내는지”를 확인한 것입니다.
 
+핵심 후보만 같은 경로로 다시 비교하는 명령:
+
+```bash
+npm run benchmark:core-models
+```
+
+현재 core-models 결과:
+
+| 모델 | 크기 | 차원 | CPU median | query top-1 | 판단 |
+|---|---:|---:|---:|---|---|
+| DINOv2-small | 24.02 MiB | 384 | 37.79ms | coex-sample-06 | 기준선 유지 |
+| MobileCLIP2-S0 ONNX | 43.45 MiB | 512 | 32.04ms | coex-sample-01 | 서버/네이티브 후보 우선 |
+
+이 샘플에서는 MobileCLIP2-S0가 더 빠르고 기대 top-1을 맞췄습니다. 다만 브라우저 WASM에서는 완료 시간이 길었으므로 서버/네이티브 후보로 둡니다.
+
 ## 현재 기준선
 
 ```text

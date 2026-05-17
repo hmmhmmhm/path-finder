@@ -27,5 +27,12 @@
 			"binding": "MODEL_BUCKET",
 			"bucket_name": "path-finder-models"
 		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "path-finder-metadata",
+			"database_id": "fa1db0d9-34de-4b10-a04b-9461bac3d8c9"
+		}
 	]
 }

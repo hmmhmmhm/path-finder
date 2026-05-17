@@ -47,6 +47,24 @@ modelId=dinov2-small-v1
 
 서버가 원본 이미지를 받는 방식은 개인정보 부담이 있으므로, 기본은 브라우저/네이티브 추론이고 서버 추론은 옵션으로 둡니다.
 
+## 현재 구현
+
+FastAPI 프로토타입은 `services/embed_api/main.py`에 있습니다.
+
+```bash
+npm run server:embed
+npm run test:embed-api
+```
+
+지원 모델:
+
+```text
+dinov2-small-v1
+mobileclip2-s0-onnx-v1
+```
+
+모델은 첫 요청에서 lazy load합니다. 테스트는 fake embedder로 API 계약을 검증하고, 실제 모델 성능은 `npm run benchmark:core-models`로 비교합니다.
+
 ## Core ML 경로
 
 iPhone 15 Pro Max를 기준으로 하면 Core ML 변환이 가장 중요한 네이티브 경로입니다.
@@ -67,6 +85,16 @@ Core ML에서 확인할 항목:
 - 메모리 사용량
 - 입력 전처리 비용
 - DINOv2-small vs MobileCLIP-S0
+
+Core ML 변환 프로토타입은 `scripts/export_coreml.py`입니다.
+
+```bash
+python3 scripts/export_coreml.py --model dinov2-small --dry-run
+python3 scripts/export_coreml.py --model mobileclip2-s0 --dry-run
+npm run models:coreml -- --model dinov2-small
+```
+
+현재 실제 변환 구현은 DINOv2-small부터 지원합니다. MobileCLIP2-S0는 checkpoint wrapper를 확정한 뒤 변환합니다.
 
 ## 현재 판단
 

@@ -1,6 +1,7 @@
 import { handleSearchRequest } from "./api";
 import { createLocalSearchBackend, createVectorizeSearchBackend, type VectorizeIndex } from "./backends";
 import { sampleGallery } from "./generated/sample-gallery";
+import { createD1SearchMetadataStore, type D1Database } from "./metadataStore";
 
 const R2_MODEL_PATHS = new Set([
   "/models/dinov2-small-embed-int8.onnx",
@@ -21,6 +22,7 @@ type Env = {
   VECTORIZE_SAMPLE?: VectorizeIndex;
   VECTORIZE_DINOV2?: VectorizeIndex;
   VECTORIZE_MOBILECLIP2?: VectorizeIndex;
+  DB?: D1Database;
   MODEL_BUCKET?: R2Bucket;
   ASSETS: {
     fetch(request: Request): Promise<Response>;
@@ -50,15 +52,21 @@ export default {
 
     if (url.pathname === "/api/search") {
       const sampleIndex = env.VECTORIZE_SAMPLE ?? env.VECTORIZE;
+      const metadataStore = env.DB ? createD1SearchMetadataStore(env.DB) : undefined;
       return handleSearchRequest(request, {
         "tiny-sample-v1": sampleIndex
-          ? createVectorizeSearchBackend(sampleIndex)
+          ? createVectorizeSearchBackend(sampleIndex, metadataStore)
           : createLocalSearchBackend(sampleGallery),
         ...(env.VECTORIZE_DINOV2
-          ? { "dinov2-small-v1": createVectorizeSearchBackend(env.VECTORIZE_DINOV2) }
+          ? { "dinov2-small-v1": createVectorizeSearchBackend(env.VECTORIZE_DINOV2, metadataStore) }
           : {}),
         ...(env.VECTORIZE_MOBILECLIP2
-          ? { "mobileclip2-s0-onnx-v1": createVectorizeSearchBackend(env.VECTORIZE_MOBILECLIP2) }
+          ? {
+              "mobileclip2-s0-onnx-v1": createVectorizeSearchBackend(
+                env.VECTORIZE_MOBILECLIP2,
+                metadataStore,
+              ),
+            }
           : {}),
       });
     }
