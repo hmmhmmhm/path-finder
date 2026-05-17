@@ -67,6 +67,22 @@ export const modelProfiles: ModelProfile[] = [
     std: [0.229, 0.224, 0.225],
     description: "WebGPU 성능 비교용 실험 프로필. 반복 실행 안정성 검증 전까지 운영 기본값으로 쓰지 않는다.",
   },
+  {
+    id: "mobileclip2-s0-onnx-v1",
+    label: "MobileCLIP2-S0 ONNX",
+    modelUrl: "/models/mobileclip2-s0-vision.onnx",
+    inputSize: 256,
+    dimensions: 512,
+    vectorizeIndex: "path-finder-mobileclip2-s0",
+    workerAsset: false,
+    browserRunnable: true,
+    inferenceTimeoutMs: 120_000,
+    backendCandidates: ["wasm"],
+    autoRunOnSelect: false,
+    mean: [0, 0, 0],
+    std: [1, 1, 1],
+    description: "MobileCLIP2-S0 vision ONNX 후보 모델",
+  },
 ];
 
 export function getDefaultModelProfile(): ModelProfile {

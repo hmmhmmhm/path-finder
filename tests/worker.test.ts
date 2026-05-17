@@ -10,14 +10,14 @@ function createAssetsResponse(status = 404): { fetch: () => Promise<Response> } 
 }
 
 describe("worker model assets", () => {
-  it("DINOv2 ONNX 모델은 R2에서 서빙한다", async () => {
+  it("R2 모델을 public 모델 경로로 서빙한다", async () => {
     const response = await worker.fetch(
-      new Request("https://path-finder.test/models/dinov2-small-embed-int8.onnx"),
+      new Request("https://path-finder.test/models/mobileclip2-s0-vision.onnx"),
       {
         ASSETS: createAssetsResponse(),
         MODEL_BUCKET: {
           async get(key: string) {
-            expect(key).toBe("models/dinov2-small-embed-int8.onnx");
+            expect(key).toBe("models/mobileclip2-s0-vision.onnx");
             return {
               body: new Blob(["onnx"]).stream(),
               writeHttpMetadata(headers: Headers) {
@@ -35,9 +35,9 @@ describe("worker model assets", () => {
     await expect(response.text()).resolves.toBe("onnx");
   });
 
-  it("R2에 DINOv2 ONNX 모델이 없으면 404를 반환한다", async () => {
+  it("R2에 모델이 없으면 404를 반환한다", async () => {
     const response = await worker.fetch(
-      new Request("https://path-finder.test/models/dinov2-small-embed-int8.onnx"),
+      new Request("https://path-finder.test/models/mobileclip2-s0-vision.onnx"),
       {
         ASSETS: createAssetsResponse(),
         MODEL_BUCKET: {
@@ -49,6 +49,6 @@ describe("worker model assets", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.text()).resolves.toBe("DINOv2 모델을 R2에서 찾을 수 없습니다.");
+    await expect(response.text()).resolves.toBe("모델을 R2에서 찾을 수 없습니다.");
   });
 });

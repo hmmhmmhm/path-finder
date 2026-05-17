@@ -74,6 +74,37 @@ def build_dinov2_embedder() -> Callable[[Image.Image], list[float]]:
     return embed
 
 
+def mobileclip2_preprocess(image: Image.Image) -> np.ndarray:
+    image = image.convert("RGB")
+    width, height = image.size
+    if width < height:
+        resized = (256, round(height * 256 / width))
+    else:
+        resized = (round(width * 256 / height), 256)
+    image = image.resize(resized, Image.Resampling.BICUBIC)
+    left = (image.width - 256) // 2
+    top = (image.height - 256) // 2
+    image = image.crop((left, top, left + 256, top + 256))
+    array = np.asarray(image, dtype=np.float32) / 255.0
+    return np.transpose(array, (2, 0, 1))[None, :, :, :]
+
+
+def build_mobileclip2_embedder() -> Callable[[Image.Image], list[float]]:
+    import onnxruntime as ort
+    from huggingface_hub import hf_hub_download
+
+    model_path = hf_hub_download("plhery/mobileclip2-onnx", "onnx/s0/vision_model.onnx")
+    session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+    input_name = session.get_inputs()[0].name
+    output_name = session.get_outputs()[0].name
+
+    def embed(image: Image.Image) -> list[float]:
+        output = session.run([output_name], {input_name: mobileclip2_preprocess(image)})[0][0]
+        return normalize(output)
+
+    return embed
+
+
 def vectorize_record(item: dict) -> dict:
     return {
         "id": item["id"],
@@ -95,7 +126,7 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path, help="manifest 출력 경로")
     parser.add_argument("--public-prefix", default="/gallery", help="프론트에서 접근할 이미지 경로 prefix")
     parser.add_argument("--copy-images-to", type=Path, help="이미지를 public 폴더로 복사할 경로")
-    parser.add_argument("--model", choices=["tiny", "dinov2-small"], default="tiny")
+    parser.add_argument("--model", choices=["tiny", "dinov2-small", "mobileclip2-s0-onnx"], default="tiny")
     parser.add_argument("--floor", default="")
     parser.add_argument("--zone", default="")
     args = parser.parse_args()
@@ -109,9 +140,14 @@ def main() -> None:
         dimensions = 64
         model_id = "tiny-sample-v1"
     else:
-        embed = build_dinov2_embedder()
-        dimensions = 384
-        model_id = "dinov2-small-v1"
+        if args.model == "dinov2-small":
+            embed = build_dinov2_embedder()
+            dimensions = 384
+            model_id = "dinov2-small-v1"
+        else:
+            embed = build_mobileclip2_embedder()
+            dimensions = 512
+            model_id = "mobileclip2-s0-onnx-v1"
 
     if args.copy_images_to:
         args.copy_images_to.mkdir(parents=True, exist_ok=True)

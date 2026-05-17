@@ -35,6 +35,17 @@ describe("modelProfiles", () => {
     });
   });
 
+  it("MobileCLIP2-S0 ONNX 프로필은 512차원과 별도 Vectorize 인덱스를 사용한다", () => {
+    expect(getModelProfile("mobileclip2-s0-onnx-v1")).toMatchObject({
+      dimensions: 512,
+      vectorizeIndex: "path-finder-mobileclip2-s0",
+      backendCandidates: ["wasm"],
+      autoRunOnSelect: false,
+      mean: [0, 0, 0],
+      std: [1, 1, 1],
+    });
+  });
+
   it("프로필 id는 중복되지 않는다", () => {
     const ids = modelProfiles.map((profile) => profile.id);
     expect(new Set(ids).size).toBe(ids.length);

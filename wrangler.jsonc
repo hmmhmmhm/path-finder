@@ -16,6 +16,10 @@
 		{
 			"binding": "VECTORIZE_DINOV2",
 			"index_name": "path-finder-dinov2-small"
+		},
+		{
+			"binding": "VECTORIZE_MOBILECLIP2",
+			"index_name": "path-finder-mobileclip2-s0"
 		}
 	],
 	"r2_buckets": [

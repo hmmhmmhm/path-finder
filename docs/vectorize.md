@@ -67,10 +67,35 @@ npx wrangler vectorize upsert path-finder-dinov2-small \
   --json
 ```
 
+## MobileCLIP2-S0 인덱스
+
+MobileCLIP2-S0 ONNX vision 모델은 512차원 임베딩을 반환합니다. 브라우저 WASM은 현재 느려 UI 자동 실행에서 제외했지만, 서버/네이티브 후보 비교를 위해 별도 인덱스를 만들었습니다.
+
+```text
+index_name: path-finder-mobileclip2-s0
+binding: VECTORIZE_MOBILECLIP2
+dimensions: 512
+metric: cosine
+stored vectors: 8
+```
+
+생성 및 업서트 명령은 다음과 같습니다.
+
+```bash
+npx wrangler vectorize create path-finder-mobileclip2-s0 \
+  --dimensions 512 \
+  --metric cosine
+
+npx wrangler vectorize upsert path-finder-mobileclip2-s0 \
+  --file data/manifests/mobileclip2-s0-gallery-manifest.ndjson \
+  --json
+```
+
 ## Worker 동작
 
 - `VECTORIZE_SAMPLE` 또는 `VECTORIZE` 바인딩이 있으면 tiny 샘플 검색에 Vectorize를 사용합니다.
 - `VECTORIZE_DINOV2` 바인딩이 있으면 `modelId: "dinov2-small-v1"` 검색에 384차원 Vectorize를 사용합니다.
+- `VECTORIZE_MOBILECLIP2` 바인딩이 있으면 `modelId: "mobileclip2-s0-onnx-v1"` 검색에 512차원 Vectorize를 사용합니다.
 - 바인딩이 없으면 `src/generated/sample-gallery.ts`에 내장된 샘플 배열을 사용합니다.
 - `/api/search` 응답에는 `backend` 필드가 포함되어 현재 사용한 검색 백엔드를 확인할 수 있습니다.
 

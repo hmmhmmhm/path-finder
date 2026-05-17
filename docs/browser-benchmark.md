@@ -105,3 +105,17 @@ content-type: application/octet-stream
 - DINOv2-small 브라우저 WASM은 첫 실행이 약 4.3초, 세션 재사용 후 모델 추론은 약 0.36초까지 내려갑니다.
 - WebGPU는 지원 경로를 붙였지만 현재 Chrome headless 검증에서 반복 안정성이 낮습니다.
 - 코엑스 파일럿에서는 브라우저 DINO를 실험 경로로 두고, 운영 후보는 서버/네이티브/Core ML 추론을 계속 우선합니다.
+
+## MobileCLIP2-S0 ONNX 브라우저 결과
+
+MobileCLIP2-S0 ONNX는 네이티브 ONNX Runtime CPU에서는 median 37.03ms로 빨랐습니다. 하지만 같은 모델을 브라우저 WASM 경로에 연결해 agent-browser로 실행했을 때 130초 이상 검색 완료가 반환되지 않았습니다.
+
+따라서 MobileCLIP2-S0 ONNX는 다음처럼 분류합니다.
+
+```text
+서버/네이티브 CPU 후보: 유지
+브라우저 WASM 후보: 제외
+UI 자동 실행: 비활성화
+```
+
+브라우저에서 다시 검토하려면 raw ONNX Runtime Web이 아니라 Transformers.js WebGPU 경로를 별도로 테스트해야 합니다.

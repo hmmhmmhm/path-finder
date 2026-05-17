@@ -2,8 +2,10 @@ import { handleSearchRequest } from "./api";
 import { createLocalSearchBackend, createVectorizeSearchBackend, type VectorizeIndex } from "./backends";
 import { sampleGallery } from "./generated/sample-gallery";
 
-const DINO_MODEL_PATH = "/models/dinov2-small-embed-int8.onnx";
-const DINO_MODEL_R2_KEY = "models/dinov2-small-embed-int8.onnx";
+const R2_MODEL_PATHS = new Set([
+  "/models/dinov2-small-embed-int8.onnx",
+  "/models/mobileclip2-s0-vision.onnx",
+]);
 
 type R2ObjectBody = {
   body: ReadableStream;
@@ -18,16 +20,17 @@ type Env = {
   VECTORIZE?: VectorizeIndex;
   VECTORIZE_SAMPLE?: VectorizeIndex;
   VECTORIZE_DINOV2?: VectorizeIndex;
+  VECTORIZE_MOBILECLIP2?: VectorizeIndex;
   MODEL_BUCKET?: R2Bucket;
   ASSETS: {
     fetch(request: Request): Promise<Response>;
   };
 };
 
-async function serveDinoModelFromR2(env: Env): Promise<Response> {
-  const object = await env.MODEL_BUCKET?.get(DINO_MODEL_R2_KEY);
+async function serveModelFromR2(pathname: string, env: Env): Promise<Response> {
+  const object = await env.MODEL_BUCKET?.get(pathname.slice(1));
   if (!object) {
-    return new Response("DINOv2 모델을 R2에서 찾을 수 없습니다.", { status: 404 });
+    return new Response("모델을 R2에서 찾을 수 없습니다.", { status: 404 });
   }
 
   const headers = new Headers();
@@ -41,8 +44,8 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === DINO_MODEL_PATH) {
-      return serveDinoModelFromR2(env);
+    if (R2_MODEL_PATHS.has(url.pathname)) {
+      return serveModelFromR2(url.pathname, env);
     }
 
     if (url.pathname === "/api/search") {
@@ -53,6 +56,9 @@ export default {
           : createLocalSearchBackend(sampleGallery),
         ...(env.VECTORIZE_DINOV2
           ? { "dinov2-small-v1": createVectorizeSearchBackend(env.VECTORIZE_DINOV2) }
+          : {}),
+        ...(env.VECTORIZE_MOBILECLIP2
+          ? { "mobileclip2-s0-onnx-v1": createVectorizeSearchBackend(env.VECTORIZE_MOBILECLIP2) }
           : {}),
       });
     }
