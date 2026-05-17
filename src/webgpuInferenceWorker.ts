@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web/wasm";
+import * as ort from "onnxruntime-web/webgpu";
 import type { RuntimeBackend } from "./modelProfiles";
 
 ort.env.wasm.numThreads = 1;
@@ -34,7 +34,6 @@ type AttemptFailure = {
 
 const MODEL_CACHE_NAME = "path-finder-models-v1";
 const modelBytePromises = new Map<string, Promise<ModelBytes>>();
-const sessionPromises = new Map<string, Promise<SessionLoad>>();
 
 async function loadModelBytes(modelUrl: string): Promise<ModelBytes> {
   const existing = modelBytePromises.get(modelUrl);
@@ -73,9 +72,13 @@ async function loadModelBytes(modelUrl: string): Promise<ModelBytes> {
   return promise;
 }
 
+function isWebGpuAvailable(): boolean {
+  return "gpu" in navigator;
+}
+
 async function createSession(modelUrl: string, backend: RuntimeBackend): Promise<SessionLoad> {
-  if (backend !== "wasm") {
-    throw new Error(`${backend}는 WASM Worker에서 실행할 수 없습니다.`);
+  if (backend === "webgpu" && !isWebGpuAvailable()) {
+    throw new Error("WebGPU를 사용할 수 없습니다.");
   }
 
   const model = await loadModelBytes(modelUrl);
@@ -95,30 +98,6 @@ async function createSession(modelUrl: string, backend: RuntimeBackend): Promise
   };
 }
 
-async function loadSession(modelUrl: string, backend: RuntimeBackend): Promise<SessionLoad> {
-  const key = `${backend}:${modelUrl}`;
-  const existing = sessionPromises.get(key);
-  if (existing) {
-    const loaded = await existing;
-    return {
-      ...loaded,
-      modelLoadMs: 0,
-      sessionCreateMs: 0,
-      sessionReused: true,
-    };
-  }
-
-  const promise = createSession(modelUrl, backend);
-  sessionPromises.set(key, promise);
-
-  try {
-    return await promise;
-  } catch (error) {
-    sessionPromises.delete(key);
-    throw error;
-  }
-}
-
 async function loadFirstAvailableSession(
   modelUrl: string,
   backendCandidates: RuntimeBackend[],
@@ -127,7 +106,7 @@ async function loadFirstAvailableSession(
 
   for (const backend of backendCandidates) {
     try {
-      return { ...(await loadSession(modelUrl, backend)), failures };
+      return { ...(await createSession(modelUrl, backend)), failures };
     } catch (error) {
       failures.push({
         backend,

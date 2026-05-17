@@ -1,5 +1,5 @@
 import { sampleGallery } from "./generated/sample-gallery";
-import { getDefaultModelProfile, getModelProfile } from "./modelProfiles";
+import { getDefaultModelProfile, getModelProfile, modelProfiles } from "./modelProfiles";
 import { pixelsToCHWTensorData } from "./preprocess";
 import "./styles.css";
 
@@ -19,6 +19,24 @@ type ApiSearchResponse = {
   modelId: string;
   topK: number;
   results: ApiSearchResult[];
+};
+
+type InferenceTimings = {
+  preprocessMs: number;
+  modelLoadMs: number;
+  sessionCreateMs: number;
+  inferenceMs: number;
+  apiMs: number;
+  totalMs: number;
+};
+
+type EmbeddingResult = {
+  embedding: number[];
+  backend: string;
+  cacheHit: boolean;
+  sessionReused: boolean;
+  fallbackErrors: Array<{ backend: string; error: string }>;
+  timings: Omit<InferenceTimings, "apiMs" | "totalMs">;
 };
 
 let modelProfile = getDefaultModelProfile();
@@ -48,8 +66,12 @@ app.innerHTML = `
         <label class="model-select">
           <span>모델</span>
           <select id="modelSelect">
-            <option value="tiny-sample-v1">Tiny 샘플 64D</option>
-            <option value="dinov2-small-v1">DINOv2-small 384D</option>
+            ${modelProfiles
+              .map(
+                (profile) =>
+                  `<option value="${profile.id}">${profile.label} ${profile.dimensions}D</option>`,
+              )
+              .join("")}
           </select>
         </label>
         <img id="queryImage" alt="검색할 샘플 이미지" src="${SAMPLE_QUERY}" />
@@ -65,6 +87,7 @@ app.innerHTML = `
           <h2>위치 후보</h2>
           <span id="latency">-</span>
         </div>
+        <dl id="metrics" class="metrics"></dl>
         <ol id="results" class="results"></ol>
       </div>
     </section>
@@ -93,8 +116,23 @@ const statusEl = document.querySelector<HTMLParagraphElement>("#status")!;
 const latencyEl = document.querySelector<HTMLSpanElement>("#latency")!;
 const resultsEl = document.querySelector<HTMLOListElement>("#results")!;
 const modelBadge = document.querySelector<HTMLSpanElement>("#modelBadge")!;
+const metricsEl = document.querySelector<HTMLDListElement>("#metrics")!;
 
 let inferenceWorker: Worker | null = null;
+let inferenceWorkerKind: "wasm" | "webgpu" | null = null;
+
+function getInferenceWorker(): Worker {
+  const nextKind = modelProfile.backendCandidates.includes("webgpu") ? "webgpu" : "wasm";
+  if (!inferenceWorker || inferenceWorkerKind !== nextKind) {
+    inferenceWorker?.terminate();
+    inferenceWorker =
+      nextKind === "webgpu"
+        ? new Worker(new URL("./webgpuInferenceWorker.ts", import.meta.url), { type: "module" })
+        : new Worker(new URL("./inferenceWorker.ts", import.meta.url), { type: "module" });
+    inferenceWorkerKind = nextKind;
+  }
+  return inferenceWorker;
+}
 
 async function imageToTensorData(image: HTMLImageElement): Promise<Float32Array> {
   if (!image.complete || image.naturalWidth === 0) {
@@ -122,10 +160,11 @@ function normalizeEmbedding(values: Iterable<number>): number[] {
   return vector.map((value) => value / norm);
 }
 
-async function embedCurrentImage(): Promise<number[]> {
+async function embedCurrentImage(): Promise<EmbeddingResult> {
+  const preprocessStartedAt = performance.now();
   const input = await imageToTensorData(queryImage);
-  const worker = new Worker(new URL("./inferenceWorker.ts", import.meta.url), { type: "module" });
-  inferenceWorker = worker;
+  const preprocessMs = performance.now() - preprocessStartedAt;
+  const worker = getInferenceWorker();
 
   return new Promise((resolve, reject) => {
     const id = crypto.randomUUID();
@@ -133,6 +172,7 @@ async function embedCurrentImage(): Promise<number[]> {
       worker.terminate();
       if (inferenceWorker === worker) {
         inferenceWorker = null;
+        inferenceWorkerKind = null;
       }
       reject(
         new Error(
@@ -143,26 +183,60 @@ async function embedCurrentImage(): Promise<number[]> {
       );
     }, modelProfile.inferenceTimeoutMs);
 
-    worker.addEventListener("message", (event) => {
+    const onMessage = (event: MessageEvent) => {
       const message = event.data as
-        | { type: "embedding"; id: string; values: number[] }
+        | {
+            type: "embedding";
+            id: string;
+            values: number[];
+            backend: string;
+            cacheHit: boolean;
+            sessionReused: boolean;
+            fallbackErrors: Array<{ backend: string; error: string }>;
+            timings: {
+              modelLoadMs: number;
+              sessionCreateMs: number;
+              inferenceMs: number;
+            };
+          }
         | { type: "error"; id: string; error: string };
       if (message.id !== id) {
         return;
       }
       window.clearTimeout(timeout);
-      worker.terminate();
-      if (inferenceWorker === worker) {
-        inferenceWorker = null;
-      }
+      worker.removeEventListener("message", onMessage);
 
       if (message.type === "error") {
         reject(new Error(message.error));
         return;
       }
 
-      resolve(normalizeEmbedding(message.values));
-    });
+      const result = {
+        embedding: normalizeEmbedding(message.values),
+        backend: message.backend,
+        cacheHit: message.cacheHit,
+        sessionReused: message.sessionReused,
+        fallbackErrors: message.fallbackErrors,
+        timings: {
+          preprocessMs,
+          modelLoadMs: message.timings.modelLoadMs,
+          sessionCreateMs: message.timings.sessionCreateMs,
+          inferenceMs: message.timings.inferenceMs,
+        },
+      };
+
+      if (message.backend === "webgpu") {
+        worker.terminate();
+        if (inferenceWorker === worker) {
+          inferenceWorker = null;
+          inferenceWorkerKind = null;
+        }
+      }
+
+      resolve(result);
+    };
+
+    worker.addEventListener("message", onMessage);
 
     worker.postMessage(
       {
@@ -170,6 +244,7 @@ async function embedCurrentImage(): Promise<number[]> {
         id,
         modelUrl: modelProfile.modelUrl,
         inputSize: modelProfile.inputSize,
+        backendCandidates: modelProfile.backendCandidates,
         input,
       },
       [input.buffer],
@@ -181,7 +256,7 @@ async function search(embedding: number[]): Promise<ApiSearchResponse> {
   const response = await fetch("/api/search", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ embedding, topK: 5, modelId: modelProfile.id }),
+    body: JSON.stringify({ embedding, topK: 5, modelId: modelProfile.searchModelId ?? modelProfile.id }),
   });
   if (!response.ok) {
     throw new Error(`검색 API 오류: ${response.status}`);
@@ -208,8 +283,38 @@ function renderResults(data: ApiSearchResponse): void {
     .join("");
 }
 
+function formatMs(value: number): string {
+  return `${value.toFixed(1)}ms`;
+}
+
+function renderMetrics(data: EmbeddingResult, apiMs: number, totalMs: number): void {
+  const timings: InferenceTimings = {
+    ...data.timings,
+    apiMs,
+    totalMs,
+  };
+  const fallbackText =
+    data.fallbackErrors.length > 0
+      ? data.fallbackErrors.map((item) => `${item.backend}: ${item.error}`).join(" / ")
+      : "없음";
+  const cacheText = data.sessionReused ? "session reused" : data.cacheHit ? "hit" : "miss";
+
+  metricsEl.innerHTML = `
+    <div><dt>백엔드</dt><dd>${data.backend}</dd></div>
+    <div><dt>모델 캐시</dt><dd>${cacheText}</dd></div>
+    <div><dt>전처리</dt><dd>${formatMs(timings.preprocessMs)}</dd></div>
+    <div><dt>모델 로드</dt><dd>${formatMs(timings.modelLoadMs)}</dd></div>
+    <div><dt>세션 생성</dt><dd>${formatMs(timings.sessionCreateMs)}</dd></div>
+    <div><dt>추론</dt><dd>${formatMs(timings.inferenceMs)}</dd></div>
+    <div><dt>API</dt><dd>${formatMs(timings.apiMs)}</dd></div>
+    <div><dt>fallback</dt><dd>${fallbackText}</dd></div>
+  `;
+}
+
 function setModelAvailability(): void {
-  modelBadge.textContent = `ONNX CPU/WASM · ${modelProfile.dimensions}D`;
+  modelBadge.textContent = `${modelProfile.backendCandidates.join("→")} · ${
+    modelProfile.dimensions
+  }D`;
   sampleButton.disabled = !modelProfile.browserRunnable;
   fileInput.disabled = !modelProfile.browserRunnable;
 }
@@ -229,14 +334,18 @@ async function runSearch(): Promise<void> {
 
   statusEl.textContent = "브라우저에서 ONNX 임베딩을 계산하는 중입니다.";
   resultsEl.innerHTML = "";
+  metricsEl.innerHTML = "";
   const start = performance.now();
 
   try {
-    const embedding = await embedCurrentImage();
-    const data = await search(embedding);
+    const embeddingResult = await embedCurrentImage();
+    const apiStartedAt = performance.now();
+    const data = await search(embeddingResult.embedding);
+    const apiMs = performance.now() - apiStartedAt;
     const elapsed = performance.now() - start;
     latencyEl.textContent = `${elapsed.toFixed(1)}ms`;
     statusEl.textContent = "검색이 완료되었습니다.";
+    renderMetrics(embeddingResult, apiMs, elapsed);
     renderResults(data);
   } catch (error) {
     statusEl.textContent = error instanceof Error ? error.message : "검색 중 오류가 발생했습니다.";
@@ -261,6 +370,7 @@ modelSelect.addEventListener("change", () => {
   modelProfile = nextProfile;
   inferenceWorker?.terminate();
   inferenceWorker = null;
+  inferenceWorkerKind = null;
   setModelAvailability();
   if (!modelProfile.browserRunnable) {
     showDisabledModelState();
@@ -269,6 +379,10 @@ modelSelect.addEventListener("change", () => {
   resultsEl.innerHTML = "";
   latencyEl.textContent = "-";
   statusEl.textContent = `${modelProfile.label} 모델을 준비하는 중입니다.`;
+  if (modelProfile.autoRunOnSelect === false) {
+    statusEl.textContent = `${modelProfile.label}은 실험 옵션입니다. 샘플 실행 버튼으로 직접 실행하세요.`;
+    return;
+  }
   void runSearch();
 });
 

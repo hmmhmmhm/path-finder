@@ -119,6 +119,8 @@ python3 scripts/ingest_images.py \
 - [Cloudflare Workers MVP](docs/cloudflare-worker-mvp.md)
 - [Vectorize 연동](docs/vectorize.md)
 - [DINOv2-small ONNX 실험](docs/dinov2-onnx.md)
+- [브라우저 성능 벤치마크](docs/browser-benchmark.md)
+- [소형 이미지 임베딩 모델 후보](docs/model-candidates.md)
 - [코엑스 파일럿 수집 계획](docs/pilot-coex.md)
 - [정밀 검증 설계](docs/precision-verification.md)
 

@@ -8,6 +8,7 @@ describe("modelProfiles", () => {
       dimensions: 64,
       vectorizeIndex: "path-finder-sample-embeddings",
       workerAsset: true,
+      backendCandidates: ["wasm"],
     });
   });
 
@@ -18,8 +19,19 @@ describe("modelProfiles", () => {
       workerAsset: false,
       browserRunnable: true,
       inferenceTimeoutMs: 180_000,
+      backendCandidates: ["wasm"],
       mean: [0.485, 0.456, 0.406],
       std: [0.229, 0.224, 0.225],
+    });
+  });
+
+  it("WebGPU는 별도 실험 프로필로 분리한다", () => {
+    expect(getModelProfile("dinov2-small-webgpu-v1")).toMatchObject({
+      dimensions: 384,
+      searchModelId: "dinov2-small-v1",
+      vectorizeIndex: "path-finder-dinov2-small",
+      backendCandidates: ["webgpu", "wasm"],
+      autoRunOnSelect: false,
     });
   });
 

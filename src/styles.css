@@ -154,6 +154,34 @@ h2 {
   list-style: none;
 }
 
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.metrics div {
+  min-width: 0;
+  border: 1px solid #e0e5de;
+  border-radius: 6px;
+  background: #fbfcfa;
+  padding: 8px;
+}
+
+.metrics dt {
+  color: #607078;
+  font-size: 12px;
+}
+
+.metrics dd {
+  overflow-wrap: anywhere;
+  margin: 3px 0 0;
+  color: #1e2528;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .results li {
   display: grid;
   grid-template-columns: 86px 1fr auto;
@@ -215,6 +243,10 @@ h2 {
   .workspace,
   .gallery-strip {
     grid-template-columns: 1fr;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .header {
