@@ -1,11 +1,17 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "path-finder",
-  "main": "src/worker.ts",
-  "compatibility_date": "2026-05-17",
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "path-finder",
+	"main": "src/worker.ts",
+	"compatibility_date": "2026-05-17",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application"
+	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "path-finder-sample-embeddings"
+		}
+	]
 }

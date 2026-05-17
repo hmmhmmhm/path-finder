@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { handleSearchRequest } from "../src/api";
+import { createLocalSearchBackend } from "../src/backends";
 
 describe("handleSearchRequest", () => {
   it("POST 임베딩 요청에 대해 위치 후보를 JSON으로 반환한다", async () => {
@@ -9,10 +10,10 @@ describe("handleSearchRequest", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ embedding: [1, 0, 0], topK: 1 }),
       }),
-      [
+      createLocalSearchBackend([
         { id: "a", label: "A 구역", vector: [1, 0, 0] },
         { id: "b", label: "B 구역", vector: [0, 1, 0] },
-      ],
+      ]),
     );
 
     expect(response.status).toBe(200);
@@ -28,7 +29,7 @@ describe("handleSearchRequest", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ embedding: [1, 0, 0], topK: 1 }),
       }),
-      [{ id: "a", label: "A 구역", vector: [1, 0, 0] }],
+      createLocalSearchBackend([{ id: "a", label: "A 구역", vector: [1, 0, 0] }]),
     );
 
     const body = await response.json();
@@ -42,7 +43,7 @@ describe("handleSearchRequest", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ topK: 1 }),
       }),
-      [],
+      createLocalSearchBackend([]),
     );
 
     expect(response.status).toBe(400);

@@ -1,4 +1,4 @@
-import { type GalleryEmbedding, searchEmbeddings } from "./search";
+import type { SearchBackend } from "./backends";
 
 type SearchRequestBody = {
   embedding?: unknown;
@@ -27,13 +27,9 @@ function parseEmbedding(value: unknown): number[] | null {
   return embedding;
 }
 
-function toPublicResults(results: ReturnType<typeof searchEmbeddings>) {
-  return results.map(({ vector: _vector, ...result }) => result);
-}
-
 export async function handleSearchRequest(
   request: Request,
-  gallery: GalleryEmbedding[],
+  backend: SearchBackend,
 ): Promise<Response> {
   if (request.method !== "POST") {
     return json({ error: "POST 요청만 지원합니다." }, { status: 405 });
@@ -57,7 +53,8 @@ export async function handleSearchRequest(
   try {
     return json({
       topK,
-      results: toPublicResults(searchEmbeddings(embedding, gallery, topK)),
+      backend: backend.name,
+      results: await backend.search(embedding, topK),
     });
   } catch (error) {
     return json(

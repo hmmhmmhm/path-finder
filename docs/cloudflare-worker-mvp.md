@@ -36,13 +36,15 @@ Cloudflare Worker
 - Vite production build를 통과했습니다.
 - `wrangler deploy --dry-run`으로 Workers Assets 제한을 통과했습니다.
 - agent-browser로 로컬 Worker 페이지에서 샘플 검색을 실행했습니다.
+- Cloudflare Vectorize 샘플 인덱스 `path-finder-sample-embeddings`를 생성하고, 샘플 벡터 8개를 업서트했습니다.
+- 배포된 Worker에서 `/api/search`가 `backend: "vectorize"`로 응답하는 것을 확인했습니다.
 
 ## 현재 한계
 
 - `tiny-image-embed.onnx`는 성능 검증용 모델이 아니라 파이프라인 검증용 모델입니다.
 - 실제 코엑스 위치추정에는 DINOv2-small 또는 더 강한 이미지 임베딩 모델이 필요합니다.
-- 현재 갤러리는 Worker 코드에 내장되어 있습니다.
-- 실제 운영에서는 Cloudflare Vectorize에 임베딩을 저장하고, D1에는 위치 메타데이터를 저장해야 합니다.
+- 현재 갤러리는 샘플 Vectorize 인덱스와 Worker 내장 fallback을 모두 지원합니다.
+- 실제 운영에서는 Cloudflare Vectorize에 전체 임베딩을 저장하고, D1에는 위치 메타데이터를 저장해야 합니다.
 - 정밀한 1-3m 위치추정에는 XFeat/LightGlue 또는 HLoc 기반 기하 검증과 2D-3D 자세 추정이 추가되어야 합니다.
 
 ## 다음 구현 단계

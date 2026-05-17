@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "assets:sample": "python3 scripts/build_sample_assets.py",
+    "vectorize:sample": "node scripts/export_sample_vectorize.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "test": "vitest run",

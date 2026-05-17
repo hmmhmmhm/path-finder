@@ -89,8 +89,9 @@ python3 scripts/build_sample_assets.py
 
 - 정적 프론트엔드는 Workers Assets로 배포합니다.
 - `/api/search`는 Worker에서 처리합니다.
-- 현재 샘플 갤러리 임베딩은 `src/generated/sample-gallery.ts`에 내장되어 있습니다.
-- 실제 운영에서는 내장 배열 대신 Cloudflare Vectorize, D1, R2를 사용합니다.
+- 현재 배포는 Cloudflare Vectorize 샘플 인덱스 `path-finder-sample-embeddings`를 사용합니다.
+- `VECTORIZE` 바인딩이 없을 때는 `src/generated/sample-gallery.ts`의 내장 배열로 fallback합니다.
+- 실제 운영에서는 Vectorize, D1, R2를 함께 사용합니다.
 - 브라우저는 ONNX Runtime Web WASM으로 이미지 1장의 임베딩을 계산하고, 원본 이미지 대신 벡터만 API로 전송합니다.
 
 ## 저장소 구조
