@@ -22,6 +22,7 @@ dist/
 *.hdf5
 *.sqlite
 *.db
+public/models/dinov2-*.onnx
 
 # 원본 공간 데이터는 공개 레포에 올리지 않는다.
 data/raw/

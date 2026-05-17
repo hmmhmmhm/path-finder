@@ -32,7 +32,7 @@ Cloudflare Worker
 - `src/search.ts`: cosine similarity 기반 검색
 - `src/generated/sample-gallery.ts`: 로컬에서 생성한 샘플 갤러리 임베딩
 - `public/models/tiny-image-embed.onnx`: 브라우저용 샘플 ONNX 모델
-- `public/models/dinov2-small-embed-int8.onnx`: 배포 가능한 DINOv2-small int8 ONNX 모델
+- R2 `path-finder-models/models/dinov2-small-embed-int8.onnx`: DINOv2-small int8 ONNX 모델
 - `scripts/build_sample_assets.py`: 샘플 이미지, ONNX 모델, 내장 임베딩 생성
 - `scripts/export_dinov2_onnx.py`: DINOv2-small ONNX 변환과 CPU 벤치마크
 - `scripts/ingest_images.py`: 이미지 폴더를 manifest와 Vectorize NDJSON으로 변환
@@ -46,16 +46,16 @@ Cloudflare Worker
 - agent-browser로 로컬 Worker 페이지에서 샘플 검색을 실행했습니다.
 - Cloudflare Vectorize 샘플 인덱스 `path-finder-sample-embeddings`를 생성하고, 샘플 벡터 8개를 업서트했습니다.
 - 배포된 Worker에서 `/api/search`가 `backend: "vectorize"`로 응답하는 것을 확인했습니다.
-- DINOv2-small int8 ONNX가 24.02 MiB로 Workers Assets 제한 안에 들어가는 것을 확인했습니다.
+- DINOv2-small int8 ONNX가 24.02 MiB임을 확인했고, Git/Workers Assets 대신 R2에서 서빙하도록 바꿨습니다.
 - DINOv2-small 384차원 Vectorize 인덱스 `path-finder-dinov2-small`을 만들고 샘플 벡터 8개를 업서트했습니다.
-- 브라우저 WASM에서 DINOv2-small 추론은 30초 안에 안정적으로 끝나지 않아 프론트에서 비활성화했습니다.
+- 브라우저 WASM DINOv2-small 추론을 다시 활성화했고, 배포 페이지에서 샘플 query 기준 `3863.0ms`에 결과 5개가 반환되는 것을 확인했습니다.
 
 ## 현재 한계
 
 - `tiny-image-embed.onnx`는 성능 검증용 모델이 아니라 파이프라인 검증용 모델입니다.
 - 실제 코엑스 위치추정에는 DINOv2-small 또는 더 강한 이미지 임베딩 모델이 필요합니다.
 - 현재 갤러리는 샘플 Vectorize 인덱스와 Worker 내장 fallback을 모두 지원합니다.
-- DINOv2-small query 임베딩은 브라우저가 아니라 서버, 네이티브 앱, 또는 오프라인 실험 경로에서 생성해야 합니다.
+- DINOv2-small query 임베딩은 브라우저 실험 경로를 제공하지만, 운영 후보는 서버, 네이티브 앱, 또는 오프라인 실험 경로입니다.
 - 실제 운영에서는 Cloudflare Vectorize에 전체 임베딩을 저장하고, D1에는 위치 메타데이터를 저장해야 합니다.
 - 정밀한 1-3m 위치추정에는 XFeat/LightGlue 또는 HLoc 기반 기하 검증과 2D-3D 자세 추정이 추가되어야 합니다.
 

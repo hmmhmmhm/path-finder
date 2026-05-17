@@ -16,7 +16,8 @@ describe("modelProfiles", () => {
       dimensions: 384,
       vectorizeIndex: "path-finder-dinov2-small",
       workerAsset: false,
-      browserRunnable: false,
+      browserRunnable: true,
+      inferenceTimeoutMs: 180_000,
       mean: [0.485, 0.456, 0.406],
       std: [0.229, 0.224, 0.225],
     });

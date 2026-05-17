@@ -17,5 +17,11 @@
 			"binding": "VECTORIZE_DINOV2",
 			"index_name": "path-finder-dinov2-small"
 		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MODEL_BUCKET",
+			"bucket_name": "path-finder-models"
+		}
 	]
 }

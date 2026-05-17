@@ -134,8 +134,14 @@ async function embedCurrentImage(): Promise<number[]> {
       if (inferenceWorker === worker) {
         inferenceWorker = null;
       }
-      reject(new Error(`${modelProfile.label} 브라우저 추론이 30초를 초과했습니다.`));
-    }, 30_000);
+      reject(
+        new Error(
+          `${modelProfile.label} 브라우저 추론이 ${Math.round(
+            modelProfile.inferenceTimeoutMs / 1000,
+          )}초를 초과했습니다.`,
+        ),
+      );
+    }, modelProfile.inferenceTimeoutMs);
 
     worker.addEventListener("message", (event) => {
       const message = event.data as

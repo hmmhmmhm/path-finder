@@ -7,6 +7,7 @@
     "assets:sample": "python3 scripts/build_sample_assets.py",
     "ingest:images": "python3 scripts/ingest_images.py",
     "models:dinov2": "python3 scripts/export_dinov2_onnx.py",
+    "models:r2:put": "wrangler r2 object put path-finder-models/models/dinov2-small-embed-int8.onnx --file artifacts/models/dinov2-small-embed-int8.onnx --content-type application/octet-stream --remote",
     "vectorize:sample": "node scripts/export_sample_vectorize.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
