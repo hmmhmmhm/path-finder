@@ -12,6 +12,10 @@
 		{
 			"binding": "VECTORIZE",
 			"index_name": "path-finder-sample-embeddings"
+		},
+		{
+			"binding": "VECTORIZE_DINOV2",
+			"index_name": "path-finder-dinov2-small"
 		}
 	]
 }

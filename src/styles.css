@@ -15,6 +15,12 @@ input {
   font: inherit;
 }
 
+button:disabled,
+.file-input:has(input:disabled) span {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .shell {
   width: min(1180px, calc(100vw - 32px));
   margin: 0 auto;
@@ -102,6 +108,23 @@ h2 {
   object-fit: cover;
   border-radius: 6px;
   border: 1px solid #d5dad3;
+}
+
+.model-select {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #526268;
+  font-size: 13px;
+}
+
+.model-select select {
+  width: 100%;
+  border: 1px solid #cfd7cf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e2528;
+  padding: 9px 10px;
 }
 
 .file-input {

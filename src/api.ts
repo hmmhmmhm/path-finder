@@ -3,7 +3,10 @@ import type { SearchBackend } from "./backends";
 type SearchRequestBody = {
   embedding?: unknown;
   topK?: unknown;
+  modelId?: unknown;
 };
+
+type SearchBackends = Record<string, SearchBackend>;
 
 function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data, null, 2), {
@@ -29,7 +32,7 @@ function parseEmbedding(value: unknown): number[] | null {
 
 export async function handleSearchRequest(
   request: Request,
-  backend: SearchBackend,
+  backends: SearchBackends,
 ): Promise<Response> {
   if (request.method !== "POST") {
     return json({ error: "POST 요청만 지원합니다." }, { status: 405 });
@@ -49,10 +52,17 @@ export async function handleSearchRequest(
 
   const requestedTopK = typeof body.topK === "number" ? body.topK : 5;
   const topK = Math.min(Math.max(Math.trunc(requestedTopK), 1), 20);
+  const modelId = typeof body.modelId === "string" ? body.modelId : "tiny-sample-v1";
+  const backend = backends[modelId];
+
+  if (!backend) {
+    return json({ error: `지원하지 않는 modelId입니다: ${modelId}` }, { status: 400 });
+  }
 
   try {
     return json({
       topK,
+      modelId,
       backend: backend.name,
       results: await backend.search(embedding, topK),
     });

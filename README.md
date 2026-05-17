@@ -50,6 +50,8 @@
 
 이 레포는 Cloudflare Workers 기반 MVP를 포함합니다. 현재 구현은 실제 코엑스 데이터가 아니라, 샘플 이미지와 로컬에서 변환한 작은 ONNX 모델로 “브라우저 임베딩 생성 → Worker 검색 API → 위치 후보 반환” 경로를 검증합니다.
 
+DINOv2-small도 ONNX int8 변환과 384차원 Vectorize 인덱스 업서트까지 확인했습니다. 다만 브라우저 WASM 추론은 30초 안에 안정적으로 끝나지 않아 현재 프론트에서는 비활성화했습니다. DINOv2-small은 오프라인 ingest, 서버 추론, 네이티브 앱 추론 경로에서 사용하는 쪽으로 둡니다.
+
 첫 번째 실제 데이터 마일스톤은 코엑스 일부 구간에서 소규모 데이터셋을 만들어 다음 질문에 답하는 것입니다.
 
 - 전역 임베딩만으로 올바른 위치 후보를 얼마나 잘 찾는가?
@@ -85,14 +87,39 @@ python3 scripts/build_sample_assets.py
 
 `tiny-image-embed.onnx`는 전체 파이프라인 검증용 모델입니다. 실제 위치추정 성능을 목표로 할 때는 DINOv2-small 또는 동급 모델에서 추출한 임베딩으로 교체합니다.
 
+## 이미지 Ingest
+
+반복 대조용 지도 이미지는 미리 임베딩 manifest로 변환합니다.
+
+```bash
+python3 scripts/ingest_images.py \
+  --input public/gallery \
+  --output data/manifests/dinov2-gallery-manifest.json \
+  --public-prefix /gallery \
+  --model dinov2-small \
+  --floor B1 \
+  --zone SAMPLE
+```
+
+자세한 절차는 [이미지 Ingest](docs/ingest.md)를 참고합니다.
+
 ## Cloudflare 구성
 
 - 정적 프론트엔드는 Workers Assets로 배포합니다.
 - `/api/search`는 Worker에서 처리합니다.
 - 현재 배포는 Cloudflare Vectorize 샘플 인덱스 `path-finder-sample-embeddings`를 사용합니다.
-- `VECTORIZE` 바인딩이 없을 때는 `src/generated/sample-gallery.ts`의 내장 배열로 fallback합니다.
+- DINOv2-small용 384차원 인덱스는 `path-finder-dinov2-small`입니다.
+- `VECTORIZE` 또는 `VECTORIZE_SAMPLE` 바인딩이 없을 때는 `src/generated/sample-gallery.ts`의 내장 배열로 fallback합니다.
 - 실제 운영에서는 Vectorize, D1, R2를 함께 사용합니다.
 - 브라우저는 ONNX Runtime Web WASM으로 이미지 1장의 임베딩을 계산하고, 원본 이미지 대신 벡터만 API로 전송합니다.
+
+## 주요 문서
+
+- [Cloudflare Workers MVP](docs/cloudflare-worker-mvp.md)
+- [Vectorize 연동](docs/vectorize.md)
+- [DINOv2-small ONNX 실험](docs/dinov2-onnx.md)
+- [코엑스 파일럿 수집 계획](docs/pilot-coex.md)
+- [정밀 검증 설계](docs/precision-verification.md)
 
 ## 저장소 구조
 

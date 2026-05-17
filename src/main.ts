@@ -1,5 +1,6 @@
-import * as ort from "onnxruntime-web/wasm";
 import { sampleGallery } from "./generated/sample-gallery";
+import { getDefaultModelProfile, getModelProfile } from "./modelProfiles";
+import { pixelsToCHWTensorData } from "./preprocess";
 import "./styles.css";
 
 type ApiSearchResult = {
@@ -15,14 +16,13 @@ type ApiSearchResult = {
 };
 
 type ApiSearchResponse = {
+  modelId: string;
   topK: number;
   results: ApiSearchResult[];
 };
 
-const MODEL_URL = "/models/tiny-image-embed.onnx";
+let modelProfile = getDefaultModelProfile();
 const SAMPLE_QUERY = "/samples/query-starfield-north.jpg";
-
-ort.env.wasm.numThreads = 1;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) {
@@ -36,7 +36,7 @@ app.innerHTML = `
         <p class="eyebrow">COEX visual localization prototype</p>
         <h1>path-finder</h1>
       </div>
-      <span class="badge">ONNX CPU/WASM</span>
+      <span id="modelBadge" class="badge">ONNX CPU/WASM · ${modelProfile.dimensions}D</span>
     </header>
 
     <section class="workspace">
@@ -45,6 +45,13 @@ app.innerHTML = `
           <h2>입력 이미지</h2>
           <button id="sampleButton" type="button">샘플 실행</button>
         </div>
+        <label class="model-select">
+          <span>모델</span>
+          <select id="modelSelect">
+            <option value="tiny-sample-v1">Tiny 샘플 64D</option>
+            <option value="dinov2-small-v1">DINOv2-small 384D</option>
+          </select>
+        </label>
         <img id="queryImage" alt="검색할 샘플 이미지" src="${SAMPLE_QUERY}" />
         <label class="file-input">
           <span>이미지 선택</span>
@@ -80,44 +87,30 @@ app.innerHTML = `
 
 const queryImage = document.querySelector<HTMLImageElement>("#queryImage")!;
 const fileInput = document.querySelector<HTMLInputElement>("#fileInput")!;
+const modelSelect = document.querySelector<HTMLSelectElement>("#modelSelect")!;
 const sampleButton = document.querySelector<HTMLButtonElement>("#sampleButton")!;
 const statusEl = document.querySelector<HTMLParagraphElement>("#status")!;
 const latencyEl = document.querySelector<HTMLSpanElement>("#latency")!;
 const resultsEl = document.querySelector<HTMLOListElement>("#results")!;
+const modelBadge = document.querySelector<HTMLSpanElement>("#modelBadge")!;
 
-let sessionPromise: Promise<ort.InferenceSession> | null = null;
+let inferenceWorker: Worker | null = null;
 
-function loadSession(): Promise<ort.InferenceSession> {
-  sessionPromise ??= ort.InferenceSession.create(MODEL_URL, {
-    executionProviders: ["wasm"],
-    graphOptimizationLevel: "all",
-  });
-  return sessionPromise;
-}
-
-async function imageToTensor(image: HTMLImageElement): Promise<ort.Tensor> {
+async function imageToTensorData(image: HTMLImageElement): Promise<Float32Array> {
   if (!image.complete || image.naturalWidth === 0) {
     await image.decode();
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = 32;
-  canvas.height = 32;
+  canvas.width = modelProfile.inputSize;
+  canvas.height = modelProfile.inputSize;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) {
     throw new Error("캔버스 컨텍스트를 만들 수 없습니다.");
   }
-  context.drawImage(image, 0, 0, 32, 32);
-  const pixels = context.getImageData(0, 0, 32, 32).data;
-  const input = new Float32Array(1 * 3 * 32 * 32);
-
-  for (let pixel = 0; pixel < 32 * 32; pixel += 1) {
-    input[pixel] = pixels[pixel * 4] / 255;
-    input[32 * 32 + pixel] = pixels[pixel * 4 + 1] / 255;
-    input[2 * 32 * 32 + pixel] = pixels[pixel * 4 + 2] / 255;
-  }
-
-  return new ort.Tensor("float32", input, [1, 3, 32, 32]);
+  context.drawImage(image, 0, 0, modelProfile.inputSize, modelProfile.inputSize);
+  const pixels = context.getImageData(0, 0, modelProfile.inputSize, modelProfile.inputSize).data;
+  return pixelsToCHWTensorData(pixels, modelProfile);
 }
 
 function normalizeEmbedding(values: Iterable<number>): number[] {
@@ -130,21 +123,59 @@ function normalizeEmbedding(values: Iterable<number>): number[] {
 }
 
 async function embedCurrentImage(): Promise<number[]> {
-  const session = await loadSession();
-  const tensor = await imageToTensor(queryImage);
-  const outputs = await session.run({ image: tensor });
-  const embedding = outputs.embedding;
-  if (!embedding || !(embedding.data instanceof Float32Array)) {
-    throw new Error("ONNX 모델 출력이 올바르지 않습니다.");
-  }
-  return normalizeEmbedding(embedding.data);
+  const input = await imageToTensorData(queryImage);
+  const worker = new Worker(new URL("./inferenceWorker.ts", import.meta.url), { type: "module" });
+  inferenceWorker = worker;
+
+  return new Promise((resolve, reject) => {
+    const id = crypto.randomUUID();
+    const timeout = window.setTimeout(() => {
+      worker.terminate();
+      if (inferenceWorker === worker) {
+        inferenceWorker = null;
+      }
+      reject(new Error(`${modelProfile.label} 브라우저 추론이 30초를 초과했습니다.`));
+    }, 30_000);
+
+    worker.addEventListener("message", (event) => {
+      const message = event.data as
+        | { type: "embedding"; id: string; values: number[] }
+        | { type: "error"; id: string; error: string };
+      if (message.id !== id) {
+        return;
+      }
+      window.clearTimeout(timeout);
+      worker.terminate();
+      if (inferenceWorker === worker) {
+        inferenceWorker = null;
+      }
+
+      if (message.type === "error") {
+        reject(new Error(message.error));
+        return;
+      }
+
+      resolve(normalizeEmbedding(message.values));
+    });
+
+    worker.postMessage(
+      {
+        type: "embed",
+        id,
+        modelUrl: modelProfile.modelUrl,
+        inputSize: modelProfile.inputSize,
+        input,
+      },
+      [input.buffer],
+    );
+  });
 }
 
 async function search(embedding: number[]): Promise<ApiSearchResponse> {
   const response = await fetch("/api/search", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ embedding, topK: 5 }),
+    body: JSON.stringify({ embedding, topK: 5, modelId: modelProfile.id }),
   });
   if (!response.ok) {
     throw new Error(`검색 API 오류: ${response.status}`);
@@ -171,7 +202,25 @@ function renderResults(data: ApiSearchResponse): void {
     .join("");
 }
 
+function setModelAvailability(): void {
+  modelBadge.textContent = `ONNX CPU/WASM · ${modelProfile.dimensions}D`;
+  sampleButton.disabled = !modelProfile.browserRunnable;
+  fileInput.disabled = !modelProfile.browserRunnable;
+}
+
+function showDisabledModelState(): void {
+  resultsEl.innerHTML = "";
+  latencyEl.textContent = "-";
+  statusEl.textContent =
+    modelProfile.disabledReason ?? "이 모델은 브라우저 실행을 지원하지 않습니다.";
+}
+
 async function runSearch(): Promise<void> {
+  if (!modelProfile.browserRunnable) {
+    showDisabledModelState();
+    return;
+  }
+
   statusEl.textContent = "브라우저에서 ONNX 임베딩을 계산하는 중입니다.";
   resultsEl.innerHTML = "";
   const start = performance.now();
@@ -198,6 +247,25 @@ fileInput.addEventListener("change", () => {
   queryImage.onload = () => void runSearch();
 });
 
+modelSelect.addEventListener("change", () => {
+  const nextProfile = getModelProfile(modelSelect.value);
+  if (!nextProfile) {
+    return;
+  }
+  modelProfile = nextProfile;
+  inferenceWorker?.terminate();
+  inferenceWorker = null;
+  setModelAvailability();
+  if (!modelProfile.browserRunnable) {
+    showDisabledModelState();
+    return;
+  }
+  resultsEl.innerHTML = "";
+  latencyEl.textContent = "-";
+  statusEl.textContent = `${modelProfile.label} 모델을 준비하는 중입니다.`;
+  void runSearch();
+});
+
 sampleButton.addEventListener("click", () => {
   queryImage.src = SAMPLE_QUERY;
   queryImage.onload = () => void runSearch();
@@ -206,11 +274,6 @@ sampleButton.addEventListener("click", () => {
   }
 });
 
-void loadSession()
-  .then(() => {
-    statusEl.textContent = "모델 준비가 끝났습니다. 샘플을 실행합니다.";
-    return runSearch();
-  })
-  .catch((error: unknown) => {
-    statusEl.textContent = error instanceof Error ? error.message : "모델 로딩에 실패했습니다.";
-  });
+statusEl.textContent = "모델 준비가 끝났습니다. 샘플을 실행합니다.";
+setModelAvailability();
+void runSearch();

@@ -20,7 +20,7 @@ npx wrangler vectorize create path-finder-sample-embeddings \
 
 ```text
 index_name: path-finder-sample-embeddings
-binding: VECTORIZE
+binding: VECTORIZE 또는 VECTORIZE_SAMPLE
 dimensions: 64
 metric: cosine
 stored vectors: 8
@@ -39,9 +39,38 @@ npx wrangler vectorize upsert path-finder-sample-embeddings \
   --file data/vectorize/sample-gallery.ndjson
 ```
 
+## DINOv2-small 인덱스
+
+DINOv2-small CLS 임베딩은 384차원입니다. 현재 샘플 8장에 대해 별도 인덱스를 만들고 업서트했습니다.
+
+```text
+index_name: path-finder-dinov2-small
+binding: VECTORIZE_DINOV2
+dimensions: 384
+metric: cosine
+stored vectors: 8
+```
+
+생성 명령은 다음과 같습니다.
+
+```bash
+npx wrangler vectorize create path-finder-dinov2-small \
+  --dimensions 384 \
+  --metric cosine
+```
+
+업서트 명령은 다음과 같습니다.
+
+```bash
+npx wrangler vectorize upsert path-finder-dinov2-small \
+  --file data/manifests/dinov2-gallery-manifest.ndjson \
+  --json
+```
+
 ## Worker 동작
 
-- `VECTORIZE` 바인딩이 있으면 Worker는 Vectorize 검색을 사용합니다.
+- `VECTORIZE_SAMPLE` 또는 `VECTORIZE` 바인딩이 있으면 tiny 샘플 검색에 Vectorize를 사용합니다.
+- `VECTORIZE_DINOV2` 바인딩이 있으면 `modelId: "dinov2-small-v1"` 검색에 384차원 Vectorize를 사용합니다.
 - 바인딩이 없으면 `src/generated/sample-gallery.ts`에 내장된 샘플 배열을 사용합니다.
 - `/api/search` 응답에는 `backend` 필드가 포함되어 현재 사용한 검색 백엔드를 확인할 수 있습니다.
 
@@ -62,16 +91,8 @@ npx wrangler vectorize upsert path-finder-sample-embeddings \
 }
 ```
 
-## 실제 DINOv2 전환 시 변경점
+## 실제 DINOv2 전환 시 주의점
 
-샘플 모델은 64차원이지만 DINOv2-small CLS 임베딩은 384차원입니다. 실제 모델로 바꿀 때는 새 Vectorize 인덱스를 다음처럼 만들어야 합니다.
+샘플 모델은 64차원이고 DINOv2-small CLS 임베딩은 384차원입니다. 두 인덱스는 서로 호환되지 않습니다. 모델을 바꾸면 갤러리 임베딩과 query 임베딩을 같은 모델로 다시 생성해야 합니다.
 
-```bash
-npx wrangler vectorize create path-finder-dinov2-small \
-  --dimensions 384 \
-  --metric cosine \
-  --binding VECTORIZE \
-  --update-config
-```
-
-기존 64차원 샘플 인덱스와 384차원 DINOv2 인덱스는 호환되지 않습니다. 모델을 바꾸면 갤러리 임베딩과 query 임베딩을 같은 모델로 다시 생성해야 합니다.
+브라우저 DINOv2-small WASM 추론은 현재 비활성화되어 있으므로, API 검증은 미리 생성된 384차원 벡터나 서버/네이티브 추론 결과를 사용합니다.
