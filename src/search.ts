@@ -14,6 +14,20 @@ export type SearchResult = GalleryEmbedding & {
   rank: number;
 };
 
+export type SearchConfidenceLevel = "confident" | "ambiguous" | "uncertain";
+
+export type SearchConfidence = {
+  level: SearchConfidenceLevel;
+  topScore: number;
+  margin: number;
+  reason: string;
+};
+
+type ScoredResult = {
+  score: number;
+  [key: string]: unknown;
+};
+
 function dot(a: number[], b: number[]): number {
   let value = 0;
   for (let index = 0; index < a.length; index += 1) {
@@ -55,4 +69,35 @@ export function searchEmbeddings(
       ...result,
       rank: index + 1,
     }));
+}
+
+export function classifySearchConfidence(results: ScoredResult[]): SearchConfidence {
+  const topScore = results[0]?.score ?? 0;
+  const secondScore = results[1]?.score ?? 0;
+  const margin = Number((topScore - secondScore).toFixed(6));
+
+  if (topScore < 0.72) {
+    return {
+      level: "uncertain",
+      topScore,
+      margin,
+      reason: "top-1 점수가 낮아 위치를 확정하지 않습니다.",
+    };
+  }
+
+  if (margin < 0.05) {
+    return {
+      level: "ambiguous",
+      topScore,
+      margin,
+      reason: "top-1과 top-2 후보가 가까워 다중 후보로 봅니다.",
+    };
+  }
+
+  return {
+    level: "confident",
+    topScore,
+    margin,
+    reason: "top-1 점수와 margin이 기준을 통과했습니다.",
+  };
 }

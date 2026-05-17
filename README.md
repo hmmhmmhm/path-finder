@@ -70,6 +70,13 @@ npm exec wrangler -- dev --local --port 8787
 
 브라우저에서 `http://localhost:8787`을 열면 샘플 이미지 검색 화면을 볼 수 있습니다.
 
+Python 기반 평가 스크립트는 `uv`로 필요한 패키지를 임시 환경에 설치해 실행합니다.
+
+```bash
+npm run evaluate:thresholds
+npm run rerank:orb
+```
+
 ## 샘플 자산 생성
 
 현재 샘플 자산은 다음 스크립트로 생성합니다.
@@ -119,8 +126,12 @@ python3 scripts/ingest_images.py \
 - [Cloudflare Workers MVP](docs/cloudflare-worker-mvp.md)
 - [Vectorize 연동](docs/vectorize.md)
 - [DINOv2-small ONNX 실험](docs/dinov2-onnx.md)
+- [DINO 평가와 판정 정책](docs/dino-evaluation.md)
+- [DINO 모델 변형 비교](docs/dino-variants.md)
 - [브라우저 성능 벤치마크](docs/browser-benchmark.md)
 - [소형 이미지 임베딩 모델 후보](docs/model-candidates.md)
+- [서버/네이티브 추론 경로](docs/server-native-inference.md)
+- [메타데이터 저장 구조](docs/metadata-storage.md)
 - [코엑스 파일럿 수집 계획](docs/pilot-coex.md)
 - [정밀 검증 설계](docs/precision-verification.md)
 

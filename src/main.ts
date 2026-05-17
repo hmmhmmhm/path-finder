@@ -18,6 +18,12 @@ type ApiSearchResult = {
 type ApiSearchResponse = {
   modelId: string;
   topK: number;
+  confidence?: {
+    level: "confident" | "ambiguous" | "uncertain";
+    topScore: number;
+    margin: number;
+    reason: string;
+  };
   results: ApiSearchResult[];
 };
 
@@ -87,6 +93,7 @@ app.innerHTML = `
           <h2>위치 후보</h2>
           <span id="latency">-</span>
         </div>
+        <p id="confidence" class="confidence">-</p>
         <dl id="metrics" class="metrics"></dl>
         <ol id="results" class="results"></ol>
       </div>
@@ -117,6 +124,7 @@ const latencyEl = document.querySelector<HTMLSpanElement>("#latency")!;
 const resultsEl = document.querySelector<HTMLOListElement>("#results")!;
 const modelBadge = document.querySelector<HTMLSpanElement>("#modelBadge")!;
 const metricsEl = document.querySelector<HTMLDListElement>("#metrics")!;
+const confidenceEl = document.querySelector<HTMLParagraphElement>("#confidence")!;
 
 let inferenceWorker: Worker | null = null;
 let inferenceWorkerKind: "wasm" | "webgpu" | null = null;
@@ -265,6 +273,13 @@ async function search(embedding: number[]): Promise<ApiSearchResponse> {
 }
 
 function renderResults(data: ApiSearchResponse): void {
+  const confidence = data.confidence;
+  confidenceEl.textContent = confidence
+    ? `${confidence.level} · top ${(confidence.topScore * 100).toFixed(1)}% · margin ${(
+        confidence.margin * 100
+      ).toFixed(1)}%`
+    : "-";
+  confidenceEl.dataset.level = confidence?.level ?? "";
   resultsEl.innerHTML = data.results
     .map(
       (result) => `
@@ -321,6 +336,9 @@ function setModelAvailability(): void {
 
 function showDisabledModelState(): void {
   resultsEl.innerHTML = "";
+  confidenceEl.textContent = "-";
+  confidenceEl.dataset.level = "";
+  metricsEl.innerHTML = "";
   latencyEl.textContent = "-";
   statusEl.textContent =
     modelProfile.disabledReason ?? "이 모델은 브라우저 실행을 지원하지 않습니다.";
@@ -334,6 +352,8 @@ async function runSearch(): Promise<void> {
 
   statusEl.textContent = "브라우저에서 ONNX 임베딩을 계산하는 중입니다.";
   resultsEl.innerHTML = "";
+  confidenceEl.textContent = "-";
+  confidenceEl.dataset.level = "";
   metricsEl.innerHTML = "";
   const start = performance.now();
 

@@ -21,6 +21,7 @@ describe("handleSearchRequest", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       modelId: "tiny-sample-v1",
+      confidence: { level: "confident" },
       results: [{ id: "a", label: "A 구역", rank: 1 }],
     });
   });

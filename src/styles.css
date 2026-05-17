@@ -161,6 +161,27 @@ h2 {
   margin: 0 0 12px;
 }
 
+.confidence {
+  min-height: 24px;
+  margin: 0 0 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #eef4f1;
+  color: #31534b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.confidence[data-level="ambiguous"] {
+  background: #fff3da;
+  color: #77520a;
+}
+
+.confidence[data-level="uncertain"] {
+  background: #fde8e5;
+  color: #8a2f25;
+}
+
 .metrics div {
   min-width: 0;
   border: 1px solid #e0e5de;

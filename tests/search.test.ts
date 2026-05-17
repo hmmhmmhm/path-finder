@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchEmbeddings } from "../src/search";
+import { classifySearchConfidence, searchEmbeddings } from "../src/search";
 
 describe("searchEmbeddings", () => {
   it("코사인 유사도 기준으로 가장 가까운 후보를 먼저 반환한다", () => {
@@ -25,5 +25,25 @@ describe("searchEmbeddings", () => {
         1,
       ),
     ).toThrow("벡터 차원이 일치하지 않습니다");
+  });
+
+  it("top-1 점수와 margin으로 검색 신뢰도를 판정한다", () => {
+    expect(
+      classifySearchConfidence([
+        { id: "a", label: "A", vector: [1], score: 0.92, rank: 1 },
+        { id: "b", label: "B", vector: [1], score: 0.81, rank: 2 },
+      ]),
+    ).toMatchObject({ level: "confident", margin: 0.11 });
+
+    expect(
+      classifySearchConfidence([
+        { id: "a", label: "A", vector: [1], score: 0.9, rank: 1 },
+        { id: "b", label: "B", vector: [1], score: 0.88, rank: 2 },
+      ]),
+    ).toMatchObject({ level: "ambiguous" });
+
+    expect(
+      classifySearchConfidence([{ id: "a", label: "A", vector: [1], score: 0.69, rank: 1 }]),
+    ).toMatchObject({ level: "uncertain" });
   });
 });

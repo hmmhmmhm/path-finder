@@ -9,6 +9,8 @@
     "models:dinov2": "python3 scripts/export_dinov2_onnx.py",
     "models:r2:put": "wrangler r2 object put path-finder-models/models/dinov2-small-embed-int8.onnx --file artifacts/models/dinov2-small-embed-int8.onnx --content-type application/octet-stream --remote",
     "benchmark:models": "python3 scripts/benchmark_candidate_models.py",
+    "evaluate:thresholds": "uv run --with numpy python scripts/evaluate_thresholds.py",
+    "rerank:orb": "uv run --with numpy --with opencv-python-headless python scripts/rerank_orb.py",
     "vectorize:sample": "node scripts/export_sample_vectorize.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",

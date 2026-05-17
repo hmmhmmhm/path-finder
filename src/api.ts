@@ -1,4 +1,5 @@
 import type { SearchBackend } from "./backends";
+import { classifySearchConfidence } from "./search";
 
 type SearchRequestBody = {
   embedding?: unknown;
@@ -60,11 +61,13 @@ export async function handleSearchRequest(
   }
 
   try {
+    const results = await backend.search(embedding, topK);
     return json({
       topK,
       modelId,
       backend: backend.name,
-      results: await backend.search(embedding, topK),
+      confidence: classifySearchConfidence(results),
+      results,
     });
   } catch (error) {
     return json(

@@ -14,6 +14,8 @@
 - DINOv2-small을 기본 베이스라인으로 사용합니다.
 - 검색 결과는 위치 후보, 유사도, 구역 정보를 함께 저장합니다.
 - Cloudflare Worker는 Vectorize 검색 API를 담당하고, DINOv2 query 임베딩 생성은 서버 또는 네이티브 앱 경로에서 처리합니다.
+- top-1 점수와 top-1/top-2 margin으로 confident, ambiguous, uncertain을 나눕니다.
+- ambiguous 또는 uncertain이면 단일 위치를 확정하지 않고 후보 목록과 재촬영 UX로 보냅니다.
 
 ## 3단계: 기하 검증
 
