@@ -1,0 +1,14 @@
+{
+  "points": [
+    {
+      "id": "KF-000001",
+      "description": "예시 키프레임 카메라 중심",
+      "polycam": { "x": 1.5, "z": 2.5 }
+    },
+    {
+      "id": "P001",
+      "description": "예시 query 촬영 지점",
+      "polycam": { "x": 4.2, "z": 3.1 }
+    }
+  ]
+}

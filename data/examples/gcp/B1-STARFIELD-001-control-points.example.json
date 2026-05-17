@@ -1,0 +1,27 @@
+{
+  "scanId": "B1-STARFIELD-001",
+  "origin": {
+    "lat": 37.5102,
+    "lon": 127.0602
+  },
+  "points": [
+    {
+      "id": "GCP-001",
+      "description": "기준점 1: 스캔 시작점 근처 식별 가능한 모서리",
+      "polycam": { "x": 0, "z": 0 },
+      "enu": { "east": 0, "north": 0 }
+    },
+    {
+      "id": "GCP-002",
+      "description": "기준점 2: 동쪽으로 약 10m 떨어진 식별 가능한 지점",
+      "polycam": { "x": 10, "z": 0 },
+      "enu": { "east": 10, "north": 0 }
+    },
+    {
+      "id": "GCP-003",
+      "description": "기준점 3: 북쪽으로 약 10m 떨어진 식별 가능한 지점",
+      "polycam": { "x": 0, "z": 10 },
+      "enu": { "east": 0, "north": 10 }
+    }
+  ]
+}

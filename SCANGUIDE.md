@@ -469,6 +469,123 @@ score
 
 전역 임베딩 top-K와 SIFT/ORB top-K가 같은 후보를 가리키면 위치 확정 가능성이 올라갑니다.
 
+## 로컬 좌표를 위경도로 매핑하기
+
+Polycam Raw Data의 카메라 포즈는 스캔 내부 로컬 좌표입니다. 이 좌표는 바로 코엑스 위경도가 아닙니다. 실제 위경도 또는 평면도 좌표로 쓰려면 기준점(GCP, Ground Control Point)을 잡아야 합니다.
+
+좌표 매핑은 다음 순서입니다.
+
+```text
+Polycam 로컬 좌표 x/z
+→ 기준점 기반 Sim(2) 변환
+→ ENU meter 좌표
+→ WGS84 lat/lon
+```
+
+### 1. GCP 파일 만들기
+
+예시 파일:
+
+```text
+data/examples/gcp/B1-STARFIELD-001-control-points.example.json
+```
+
+형식:
+
+```json
+{
+  "scanId": "B1-STARFIELD-001",
+  "origin": {
+    "lat": 37.5102,
+    "lon": 127.0602
+  },
+  "points": [
+    {
+      "id": "GCP-001",
+      "description": "스캔 시작점 근처 식별 가능한 모서리",
+      "polycam": { "x": 0, "z": 0 },
+      "enu": { "east": 0, "north": 0 }
+    }
+  ]
+}
+```
+
+`enu` 대신 직접 위경도를 넣을 수도 있습니다.
+
+```json
+{
+  "id": "GCP-001",
+  "polycam": { "x": 0, "z": 0 },
+  "wgs84": { "lat": 37.5102, "lon": 127.0602 }
+}
+```
+
+권장 기준점 수:
+
+```text
+최소: 3개
+권장: 4-8개
+넓은 구역: 10개 이상
+```
+
+기준점은 한 줄로만 놓지 말고, 구역의 양쪽과 교차점에 분산해서 잡습니다.
+
+### 2. 매핑할 Polycam point 파일 만들기
+
+예시 파일:
+
+```text
+data/examples/gcp/B1-STARFIELD-001-polycam-points.example.json
+```
+
+형식:
+
+```json
+{
+  "points": [
+    {
+      "id": "KF-000001",
+      "description": "키프레임 카메라 중심",
+      "polycam": { "x": 1.5, "z": 2.5 }
+    }
+  ]
+}
+```
+
+이 파일에는 keyframe camera center, query 촬영 지점, 수동 기준점 후보 등을 넣을 수 있습니다.
+
+### 3. 변환 리포트 만들기
+
+```bash
+npm run georef:polycam -- \
+  --gcp data/examples/gcp/B1-STARFIELD-001-control-points.example.json \
+  --points data/examples/gcp/B1-STARFIELD-001-polycam-points.example.json \
+  --output artifacts/reports/B1-STARFIELD-001-georef.json
+```
+
+출력에는 다음이 들어갑니다.
+
+```text
+transform.scale
+transform.rotationDeg
+transform.translation
+transform.rmse
+mappedPoints[].enu
+mappedPoints[].wgs84
+```
+
+`rmse`가 클수록 기준점 매칭이 틀렸거나 스캔이 휘었을 가능성이 큽니다. 첫 파일럿에서는 `rmse < 1m`를 목표로 보고, 2-3m 이상이면 기준점을 다시 찍습니다.
+
+### 4. 현재 구현의 한계
+
+현재 `georef:polycam`은 한 층의 작은 구역을 2D로 정렬합니다.
+
+```text
+[east, north] = scale * R * [polycam_x, polycam_z] + translation
+```
+
+다층, 경사로, 큰 루프, 긴 복도 전체를 한 번에 정렬하는 용도는 아닙니다. 큰 구역은 작은 scan chunk로 나눈 뒤 chunk별 변환을 만들고, 나중에 공통 평면도 좌표계로 병합합니다.
+
 ## R2에 올릴 파일
 
 원본 raw data 전체를 공개 GitHub에 올리면 안 됩니다. 운영/공유용으로는 R2 같은 비공개 스토리지를 사용합니다.
