@@ -20,6 +20,7 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def image_paths(input_dir: Path) -> list[Path]:
+    input_dir = input_dir.resolve()
     return sorted(path for path in input_dir.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS)
 
 
@@ -73,22 +74,24 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--top-k", type=int, default=5)
     args = parser.parse_args()
+    query_path = args.query.resolve()
+    gallery_path = args.gallery.resolve()
 
     started_at = time.perf_counter()
     rows = []
-    for path in image_paths(args.gallery):
+    for path in image_paths(gallery_path):
         rows.append(
             {
                 "id": path.stem,
                 "imagePath": str(path.relative_to(ROOT)),
-                **match_pair(args.query, path),
+                **match_pair(query_path, path),
             }
         )
     rows.sort(key=lambda item: item["score"], reverse=True)
     report = {
         "method": "SIFT_RANSAC",
-        "query": str(args.query.relative_to(ROOT)),
-        "gallery": str(args.gallery.relative_to(ROOT)),
+        "query": str(query_path.relative_to(ROOT)),
+        "gallery": str(gallery_path.relative_to(ROOT)),
         "generatedAt": int(time.time()),
         "elapsedMs": round((time.perf_counter() - started_at) * 1000, 2),
         "topK": rows[: args.top_k],

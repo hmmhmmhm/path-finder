@@ -29,4 +29,31 @@ describe("rerank_sift.py", () => {
     expect(report.topK).toHaveLength(3);
     expect(report.topK[0].score).toBeGreaterThan(0);
   });
+
+  it("상대 경로 query와 gallery를 받아도 리포트를 생성한다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "path-finder-sift-relative-"));
+    const output = join(dir, "sift.json");
+
+    execFileSync("uv", [
+      "run",
+      "--with",
+      "numpy",
+      "--with",
+      "opencv-python-headless",
+      "python",
+      "scripts/rerank_sift.py",
+      "--query",
+      "public/samples/query-starfield-north.jpg",
+      "--gallery",
+      "public/gallery",
+      "--output",
+      output,
+      "--top-k",
+      "1",
+    ]);
+
+    const report = JSON.parse(readFileSync(output, "utf8"));
+
+    expect(report.topK).toHaveLength(1);
+  });
 });
