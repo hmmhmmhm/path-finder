@@ -48,12 +48,50 @@
 
 ## 현재 단계
 
-이 레포는 초기 공개 뼈대입니다. 첫 번째 마일스톤은 코엑스 일부 구간에서 소규모 데이터셋을 만들어 다음 질문에 답하는 것입니다.
+이 레포는 Cloudflare Workers 기반 MVP를 포함합니다. 현재 구현은 실제 코엑스 데이터가 아니라, 샘플 이미지와 로컬에서 변환한 작은 ONNX 모델로 “브라우저 임베딩 생성 → Worker 검색 API → 위치 후보 반환” 경로를 검증합니다.
+
+첫 번째 실제 데이터 마일스톤은 코엑스 일부 구간에서 소규모 데이터셋을 만들어 다음 질문에 답하는 것입니다.
 
 - 전역 임베딩만으로 올바른 위치 후보를 얼마나 잘 찾는가?
 - 로컬 특징 매칭을 붙였을 때 오탐이 얼마나 줄어드는가?
 - Polycam 스캔 좌표를 평면도 좌표로 안정적으로 정렬할 수 있는가?
 - 단일 이미지 기준 1m, 3m, 5m 이내 성공률은 어느 정도인가?
+
+## 로컬 실행
+
+```bash
+npm install
+npm test
+npm run build
+npm exec wrangler -- dev --local --port 8787
+```
+
+브라우저에서 `http://localhost:8787`을 열면 샘플 이미지 검색 화면을 볼 수 있습니다.
+
+## 샘플 자산 생성
+
+현재 샘플 자산은 다음 스크립트로 생성합니다.
+
+```bash
+python3 scripts/build_sample_assets.py
+```
+
+이 스크립트는 다음 파일을 만듭니다.
+
+- `public/models/tiny-image-embed.onnx`: 프론트에서 실행하는 작은 ONNX 이미지 임베딩 모델
+- `public/gallery/*.jpg`: 샘플 지도 이미지
+- `public/samples/query-starfield-north.jpg`: 샘플 query 이미지
+- `src/generated/sample-gallery.ts`: Worker API가 사용하는 내장 샘플 임베딩
+
+`tiny-image-embed.onnx`는 전체 파이프라인 검증용 모델입니다. 실제 위치추정 성능을 목표로 할 때는 DINOv2-small 또는 동급 모델에서 추출한 임베딩으로 교체합니다.
+
+## Cloudflare 구성
+
+- 정적 프론트엔드는 Workers Assets로 배포합니다.
+- `/api/search`는 Worker에서 처리합니다.
+- 현재 샘플 갤러리 임베딩은 `src/generated/sample-gallery.ts`에 내장되어 있습니다.
+- 실제 운영에서는 내장 배열 대신 Cloudflare Vectorize, D1, R2를 사용합니다.
+- 브라우저는 ONNX Runtime Web WASM으로 이미지 1장의 임베딩을 계산하고, 원본 이미지 대신 벡터만 API로 전송합니다.
 
 ## 저장소 구조
 
@@ -61,6 +99,10 @@
 docs/         프로젝트 설계, 실험 프로토콜, 데이터 정책
 experiments/  재현 가능한 실험 스크립트와 결과 요약
 data/         공개 가능한 작은 샘플 또는 자리 표시자만 보관
+public/       프론트 정적 자산, 샘플 이미지, 샘플 ONNX 모델
+src/          Worker API와 브라우저 프론트 코드
+scripts/      샘플 모델과 샘플 임베딩 생성 스크립트
+tests/        검색과 API 동작 테스트
 ```
 
 ## 라이선스
